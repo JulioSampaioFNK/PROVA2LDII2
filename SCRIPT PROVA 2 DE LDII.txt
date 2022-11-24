@@ -1,0 +1,88 @@
+linux server com 2 placas de rede
+rede1 - modo bridge
+rede2 - rede interna(nome) intnet1
+cliente lubuntu 1 placa de rede
+rede1 - rede interna(nome) intnet1
+networkctl [verifica as placas de rede, se estão as 3 habilitadas]
+cd /etc/netplan
+vim -l 50.cloud-init.yam1
+6 network:
+7 	ethernets:
+8
+9		enp0s3:
+10		dhcp4: true
+11
+12		enp0s8:
+13		dhcp4: false
+14		addresses: [192.168.100.1/24]
+15
+16	version: 2
+:wq!
+netplan apply [ativa a rede linux e atualiza]
+ip a [verifica se as placas estão certas]
+
+CLIENTE UBUNTU
+clica com o botão direito no icone de rede na barra de tarefas
+edit connections 
+wired connection1
+ipv4 settings 
+ip 192.168.100.11 
+mask 24
+gateway 192.168.100.1
+dns 8.8.8.8
+netplan-enp0s3
+ipv4 settings
+ip 192.168.100.14
+mask 24
+gateway 192.168.100.1
+dns 8.8.8.8
+entra no terminal verifica a placa de rede e testa o ping do google e linux
+
+SERVIDOR LINUX
+cd /etc
+ls *.conf
+sysctl -p
+ls *.conf
+cd /
+find -name ip_forward
+ctrl+c
+cat /proc/sys/net/ipv4/ip_forward
+cd /etc
+vim -l sysctl.conf
+linha 28 tira a #
+:wq!
+sysctl -p
+cat /proc/sys/net/ipv4/ip_forward
+iptables -o enp0s3 -t nat -A POSTROUTING -j MASQUERADE
+iptables -t nat -L
+mkdir scripts
+cd scripts
+iptables -t nat -F
+vim gw.sh
+#!/bin/bash
+
+iptables -t nat -o enp0s3 -A POSTROUTING -j MASQUERADE
+:wq!
+chmod +x gw.sh
+iptables -t nat -L
+./gw.sh
+iptables -t nat -L
+iptables -t nat -F
+iptables -t nat -L
+cd /lib/systemd/system
+vim -l gw.service
+[Unit]
+Description=Gw no boot
+Wants=network-online.target
+After=network.target
+
+[Service]
+ExecStart=/bin/bash /home/aluno/scripts/gw.sh
+
+[Install]
+WantedBy=multi-user.target
+:wq!
+systemctl daemon-reload
+systemctl start gw
+systemctl enable gw
+iptables -t nat -L
